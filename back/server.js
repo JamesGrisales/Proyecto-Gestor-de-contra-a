@@ -1,8 +1,12 @@
 require('dotenv').config();
+
+
 const express = require('express');
 const { Pool } = require('pg');
-const bcrypt = require('bcryptjs');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const { encryptPassword, decryptPassword } = require('./utils/encryption'); // Importa funciones de cifrado
+
 
 const app = express();
 app.use(express.json());
@@ -11,20 +15,10 @@ app.use(cors());
 // Configuración de conexión PostgreSQL
 const pool = new Pool({
     host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'tu_usuario',
-    password: process.env.DB_PASS || 'tu_contraseña',
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASS || 'admin',
     database: process.env.DB_NAME || 'password_manager',
     port: process.env.DB_PORT || 5432,
-});
-
-// Verificar la conexión a la base de datos
-pool.connect((err, client, release) => {
-    if (err) {
-        console.error('Error al conectar a la base de datos:', err);
-        process.exit(1);
-    }
-    console.log('Conectado a la base de datos');
-    release(); // Liberar el cliente
 });
 
 // Ruta de inicio
@@ -41,10 +35,11 @@ app.post('/api/passwords', async (req, res) => {
     }
 
     try {
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // Cifra la contraseña antes de guardarla
+        const encryptedPassword = encryptPassword(password);
 
         const sql = 'INSERT INTO passwords (service, username, password) VALUES ($1, $2, $3) RETURNING *';
-        const result = await pool.query(sql, [service, username, hashedPassword]);
+        const result = await pool.query(sql, [service, username, encryptedPassword]);
 
         res.status(201).json({ message: 'Contraseña guardada correctamente', data: result.rows[0] });
     } catch (error) {
@@ -56,10 +51,18 @@ app.post('/api/passwords', async (req, res) => {
 // Obtener todas las contraseñas
 app.get('/api/passwords', async (req, res) => {
     try {
-        const sql = 'SELECT id, service, username FROM passwords';
+        const sql = 'SELECT id, service, username, password FROM passwords';
         const results = await pool.query(sql);
 
-        res.json(results.rows);
+        // Descifra las contraseñas antes de enviarlas
+        const decryptedPasswords = results.rows.map(row => {
+            return {
+                ...row,
+                password: decryptPassword(row.password) // Descifra la contraseña
+            };
+        });
+
+        res.json(decryptedPasswords);
     } catch (error) {
         console.error('Error al obtener datos:', error);
         res.status(500).json({ message: 'Error al obtener las contraseñas' });
@@ -71,13 +74,17 @@ app.get('/api/passwords/:id', async (req, res) => {
     const { id } = req.params;
 
     try {
-        const sql = 'SELECT service, username, password FROM passwords WHERE id = $1';
+        const sql = 'SELECT id, service, username, password FROM passwords WHERE id = $1';
         const result = await pool.query(sql, [id]);
 
         if (result.rows.length === 0) {
             return res.status(404).json({ message: 'Contraseña no encontrada' });
         }
-        res.json(result.rows[0]);
+
+        const passwordData = result.rows[0];
+        passwordData.password = decryptPassword(passwordData.password); // Descifra la contraseña
+
+        res.json(passwordData);
     } catch (error) {
         console.error('Error al obtener datos:', error);
         res.status(500).json({ message: 'Error al obtener la contraseña' });
