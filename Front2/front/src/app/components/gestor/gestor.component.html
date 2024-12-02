@@ -1,0 +1,51 @@
+
+<body>
+    <div class="password-manager">
+      <h1>Gestor de Contraseñas</h1>
+  
+      <!-- Formulario para crear nueva contraseña -->
+      <form [formGroup]="passwordForm" (ngSubmit)="createPassword()">
+        <div class="form-group">
+          <label for="service">Dominio</label>
+          <input id="service" formControlName="service" type="text" class="form-control" />
+        </div>
+  
+        <div class="form-group">
+          <label for="username">Usuario</label>
+          <input id="username" formControlName="username" type="text" class="form-control" />
+        </div>
+  
+        <div class="form-group">
+          <label for="password">Contraseña</label>
+          <input id="password" formControlName="password" type="password" class="form-control" />
+        </div>
+  
+        <button type="submit" class="btn-submit" [disabled]="passwordForm.invalid">Crear Contraseña</button>
+      </form>
+  
+      <!-- Lista de contraseñas almacenadas -->
+      <div *ngIf="passwords.length > 0">
+        <table class="password-table">
+          <thead>
+            <tr>
+              <th>Servicio</th>
+              <th>Usuario</th>
+              <th>Contraseña</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let password of passwords">
+              <td>{{ password.service }}</td>
+              <td>{{ password.username }}</td>
+              <td>{{ password.password }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+  
+      <!-- Mensaje cuando no hay contraseñas almacenadas -->
+      <div *ngIf="passwords.length === 0">
+        <p class="no-passwords">No hay contraseñas almacenadas.</p>
+      </div>
+    </div>
+  </body>

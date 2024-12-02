@@ -16,11 +16,17 @@ app.use(cors());
 const pool = new Pool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASS || 'admin',
+    password: process.env.DB_PASS || '1593',
     database: process.env.DB_NAME || 'password_manager',
     port: process.env.DB_PORT || 5432,
 });
-
+pool.connect()
+    .then(() => {
+        console.log('Conexión exitosa a PostgreSQL');
+    })
+    .catch(err => {
+        console.error('Error al conectar a PostgreSQL', err);
+    });
 // Ruta de inicio
 app.get('/', (req, res) => {
     res.send('Backend del Gestor de Contraseñas funcionando');
@@ -54,20 +60,21 @@ app.get('/api/passwords', async (req, res) => {
         const sql = 'SELECT id, service, username, password FROM passwords';
         const results = await pool.query(sql);
 
-        // Descifra las contraseñas antes de enviarlas
-        const decryptedPasswords = results.rows.map(row => {
+        // No se realiza desencriptación de las contraseñas
+        const encryptedPasswords = results.rows.map(row => {
             return {
                 ...row,
-                password: decryptPassword(row.password) // Descifra la contraseña
+                password: row.password // Se conserva la contraseña encriptada
             };
         });
 
-        res.json(decryptedPasswords);
+        res.json(encryptedPasswords);
     } catch (error) {
         console.error('Error al obtener datos:', error);
         res.status(500).json({ message: 'Error al obtener las contraseñas' });
     }
 });
+
 
 // Obtener una contraseña por ID
 app.get('/api/passwords/:id', async (req, res) => {
